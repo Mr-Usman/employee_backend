@@ -26,38 +26,45 @@ const userSchema = new mongoose.Schema({
       type: String,
       required: true
     }
-  ],
-  token: {
-    type: String
-  }
+  ]
 });
 
 userSchema.methods.checkPassword = async (user, password) => {
-  const passwordHash = user.password;
-  return new Promise((resolve, reject) => {
-    bcrypt.compare(password, passwordHash, (err, same) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve(same);
-    });
-  });
+  try {
+    const same = await bcrypt.compare(password, user.password);
+    return same;
+  } catch (e) {
+    return e.message;
+  }
+  // return new Promise((resolve, reject) => {
+  //   bcrypt.compare(password, user.password, (err, same) => {
+  //     if (err) {
+  //       return reject(err);
+  //     }
+  //     resolve(same);
+  //   });
+  // });
 };
 
 //hooks
 userSchema.pre("save", function(next) {
   var user = this;
 
-  bcrypt.genSalt(8, function(err, salt) {
+  bcrypt.hash(user.password, 8, function(err, hash) {
     if (err) return next(err);
-
-    bcrypt.hash(user.password, salt, function(err, hash) {
-      if (err) return next(err);
-
-      user.password = hash;
-      next();
-    });
+    user.password = hash;
+    next();
   });
+
+  // bcrypt.genSalt(8, function(err, salt) {
+  //   if (err) return next(err);
+
+  //   bcrypt.hash(user.password, salt, function(err, hash) {
+  //     if (err) return next(err);
+  //     user.password = hash;
+  //     next();
+  //   });
+  // });
 });
 
 //Instance method

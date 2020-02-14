@@ -1,23 +1,56 @@
 import mongoose from "mongoose";
 
 const timingSchema = new mongoose.Schema({
-  checkIn: {
-    type: Number
-  },
-  checkOut: {
-    type: Number
-  },
-  Day: {
+  email: {
     type: String,
-    required: true
+    default: "managar@gmail.com"
   },
-  overTime: {
-    type: Number
-  },
+  weekShift: [
+    {
+      day: { type: String, required: true },
+      startTime: { type: String, required: true },
+      endTime: { type: String, required: true }
+    },
+    {
+      day: { type: String, required: true },
+      startTime: { type: String, required: true },
+      endTime: { type: String, required: true }
+    },
+    {
+      day: { type: String, required: true },
+      startTime: { type: String, required: true },
+      endTime: { type: String, required: true }
+    },
+    {
+      day: { type: String, required: true },
+      startTime: { type: String, required: true },
+      endTime: { type: String, required: true }
+    },
+    {
+      day: { type: String, required: true },
+      startTime: { type: String, required: true },
+      endTime: { type: String, required: true }
+    }
+  ],
+  dropShift: [
+    {
+      day: String,
+      startTime: String,
+      endTime: String,
+      aprovedStatus: {
+        type: Boolean,
+        default: false
+      }
+    }
+  ],
+  // dropShift: {
+  //   day: { type: String, required: true },
+  //   startTime: { type: String, required: true },
+  //   endTime: { type: String, required: true }
+  // },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "user",
-    required: true
+    ref: "user"
   }
 });
 

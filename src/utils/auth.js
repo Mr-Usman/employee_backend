@@ -23,10 +23,7 @@ export const signin = async (req, res) => {
   const invalid = { message: "Invalid email and passoword combination" };
 
   try {
-    const user = await User.findOne({ email: req.body.email })
-      .select("email password")
-      .exec();
-
+    const user = await User.findOne({ email: req.body.email }).exec();
     if (!user) {
       return res.status(401).send(invalid);
     }
@@ -36,9 +33,7 @@ export const signin = async (req, res) => {
     }
 
     const token = newToken(user);
-    user.token = token;
-    await user.save();
-    return res.status(201).send({ token });
+    return res.status(201).send({ token, role: user.role });
   } catch (e) {
     console.error(e);
     res.status(500).end();
@@ -59,7 +54,6 @@ export const protect = async (req, res, next) => {
   } catch (e) {
     return res.status(401).end();
   }
-
   const user = await User.findById(payload.id)
     .select("-password")
     .lean()

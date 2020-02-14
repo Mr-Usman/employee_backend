@@ -3,8 +3,7 @@ import controller from "./timing.controller";
 
 const router = Router();
 
-router.route("/in").post(controller.timeIn);
-
-router.route("/out").post(controller.timeOut);
+router.route("/assigntiming").post(controller.assigntiming);
+// router.route("/dropshift").post(controller.dropshift);
 
 export default router;
