@@ -23,7 +23,6 @@ app.use("/signin", signin);
 app.use("/task", protect, taskRoute);
 app.use("/user", protect, userRoute);
 app.use("/manager", protect, timingRoute);
-
 // app.use("/user", protect); // acts as middleware function
 
 // app.use("/user", userRoute);

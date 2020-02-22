@@ -4,6 +4,7 @@ import User from "../resources/user/user.model";
 import Timing from "../resources/timing/timing.model";
 
 import mongoose from "mongoose";
+import moment from "moment";
 
 /**Get All Users */
 const getAll = model => async (req, res) => {
@@ -129,34 +130,53 @@ const dropShift = () => async (req, res) => {
   try {
     const { _id } = req.user;
     const { day } = req.body;
-    let droppedShift = [];
     const timing = await Timing.findOne({ userId: _id }).exec();
     const { weekShift } = timing.toJSON();
     const newShiftArray = weekShift.filter(item => item.day !== day);
     timing.weekShift = newShiftArray;
-    droppedShift = weekShift.filter(item => item.day === day);
-    timing.dropShift = droppedShift;
+    const dropShift = timing.dropShift;
+    const droppedShift = weekShift.filter(item => item.day === day)[0];
+    timing.dropShift = [...dropShift, droppedShift];
     await timing.save();
     res.status(201).json({ currentShift: newShiftArray, droppedShift });
   } catch (e) {
     console.log(e.message);
+    res.status(400).json({ message: 'some problem occured.'})
   }
 };
 
+// const approveShift = () => async (req, res) => {
+//   try {
+//     const { email } = req.body;
+//     const user = await User.findOne({ email }).exec();
+//     if (req.user.role === "manager" && user.role === "developer") {
+//       const timing = await Timing.findOne({ userId: user._id }).exec();
+//       timing.dropShift[0].aprovedStatus = true;
+//       await timing.save();
+//       res.status(200).json({ message: "user dropped shift approved." });
+//     }
+//   } catch (e) {
+//     console.log(e.message);
+//   }
+// };
+
 const approveShift = () => async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ email }).exec();
-    if (req.user.role === "manager" && user.role === "developer") {
-      const timing = await Timing.findOne({ userId: user._id }).exec();
-      timing.dropShift[0].aprovedStatus = true;
-      await timing.save();
-      res.status(200).json({ message: "user dropped shift approved." });
-    }
-  } catch (e) {
+  try{
+      if(req.user.role === "manager") {
+        const {timeId, userId } = req.body;
+        let updatedTiming = await Timing.findOne({ userId }).exec();
+        let { dropShift } = updatedTiming;
+        dropShift = dropShift.filter( shift => shift._id.toString() !== timeId.toString());
+        console.log(dropShift);
+        updatedTiming.dropShift = dropShift;
+        const newTiming = await updatedTiming.save();
+        res.status(200).json(newTiming.dropShift);
+      }
+  } catch(e){
     console.log(e.message);
+    res.status(400).json({ message: 'some problem occured.'})
   }
-};
+}
 
 const swapShift = () => async (req, res) => {
   try {
@@ -200,6 +220,32 @@ const swapShift = () => async (req, res) => {
   }
 };
 
+const timing = (model) => async (req, res) => {
+   try{
+   const { _id } = req.user;
+   const timing = await Timing.findOne({userId: _id }).exec();
+   res.status(200).json(timing)
+   } catch(e){
+    console.log(e.message)
+    res.status(400).json({ message: 'some problem occured.'})
+   }
+}
+
+const getDropShifts = () => async (req, res) => {
+   try {
+    if(req.user.role === "manager") {
+      const { userId } = req.body;
+      const timing = await Timing.findOne({ userId }).exec();
+      // console.log(timing.dropShift)
+      res.status(200).json(timing.dropShift);
+      return;
+    }
+   } catch(e){
+     console.log(e.message);
+    res.status(400).json({ message: 'some problem occured.'})
+   }
+}
+
 /** Root Object For User CRUD operations */
 export const crudControllers = model => ({
   getAll: getAll(model),
@@ -207,16 +253,21 @@ export const crudControllers = model => ({
   update: update(model),
   remove: remove(model),
   reset: reset(model),
+  timing: timing(model),
   dropShift: dropShift(),
   approveShift: approveShift(),
-  swapShift: swapShift()
+  swapShift: swapShift(),
+  getDropShifts: getDropShifts()
 });
 
 /** Create Task for User */
 const createTask = model => async (req, res) => {
   try {
     if (req.user.role === "manager") {
-      const { email, deadline, title, description } = req.body;
+      let { email, deadline, title, description } = req.body;
+      let dateObj = new Date(deadline);
+      let momentObj = moment(dateObj);
+      deadline = momentObj.format("YYYY-MM-DD HH:mm");
       const user = await User.findOne({ email }).exec();
       const newTask = await model.create({
         title,
@@ -258,28 +309,45 @@ export const taskControllers = model => ({
 /** Assigning time table to employee  */
 const assigntiming = model => async (req, res) => {
   try {
-    const { weekShift, email } = req.body;
-    const userId = await User.findOne({ email })
-      .select("id")
-      .exec();
-    const testing =
-      weekShift &&
-      weekShift.map(item => {
-        item.startTime = dateFormat(
-          item.startTime,
-          "dddd, mmmm dS, yyyy, h:MM:ss TT"
-        );
-        item.endTime = dateFormat(
-          item.endTime,
-          "dddd, mmmm dS, yyyy, h:MM:ss TT"
-        );
-        return item;
+    if(req.user.role === "manager"){
+      let { weekShift, _id } = req.body;
+      const newTiming = weekShift.map( time => {
+        let startTimeObj = new Date(time.startTime);
+        let endTimeObj = new Date(time.endTime);
+        let startTimeMomentObj = moment(startTimeObj);
+        let endTimeMomentObj = moment(endTimeObj);
+        const startTime = startTimeMomentObj.format("DD-MM-YYYY HH:mm");
+        const endTime = endTimeMomentObj.format("DD-MM-YYYY HH:mm");
+        return {
+          day: time.day,
+          startTime,
+          endTime
+        }
       });
-    req.body.userId = userId;
-    const timing = await model.create(req.body);
-    res
-      .status(201)
-      .json({ message: "Shift added for relevant User", data: timing });
+      weekShift = newTiming;
+      const timing = await model.create({ weekShift, userId: _id });
+      res
+        .status(201)
+        .json({ message: "Shift added for relevant User", data: timing });
+    }
+    // const { weekShift, email } = req.body;
+    // const userId = await User.findOne({ email })
+    //   .select("id")
+    //   .exec();
+    // const testing =
+    //   weekShift &&
+    //   weekShift.map(item => {
+    //     item.startTime = dateFormat(
+    //       item.startTime,
+    //       "dddd, mmmm dS, yyyy, h:MM:ss TT"
+    //     );
+    //     item.endTime = dateFormat(
+    //       item.endTime,
+    //       "dddd, mmmm dS, yyyy, h:MM:ss TT"
+    //     );
+    //     return item;
+    //   });
+    // req.body.userId = userId;
   } catch (e) {
     res.status(400).send({
       error: e.message

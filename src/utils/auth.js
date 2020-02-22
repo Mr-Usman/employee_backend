@@ -33,7 +33,7 @@ export const signin = async (req, res) => {
     }
 
     const token = newToken(user);
-    return res.status(201).send({ token, role: user.role });
+    return res.status(201).send({ token, role: user.role, email: user.email });
   } catch (e) {
     console.error(e);
     res.status(500).end();

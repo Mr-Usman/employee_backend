@@ -5,7 +5,7 @@ const timingSchema = new mongoose.Schema({
     type: String,
     default: "managar@gmail.com"
   },
-  weekShift: [
+  weekShift: [ 
     {
       day: { type: String, required: true },
       startTime: { type: String, required: true },

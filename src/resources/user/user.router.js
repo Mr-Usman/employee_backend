@@ -11,7 +11,11 @@ router.route("/update/:id").put(controller.update);
 
 router.route("/remove/:id").delete(controller.remove);
 
+router.route("/timing").get(controller.timing);
+
 router.route("/dropshift").post(controller.dropShift);
+
+router.route("/getdropshifts").post(controller.getDropShifts);
 
 router.route("/approveshift").post(controller.approveShift);
 
