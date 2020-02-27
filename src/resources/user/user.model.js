@@ -26,7 +26,8 @@ const userSchema = new mongoose.Schema({
       type: String,
       required: true
     }
-  ]
+  ],
+  taskId: [{ type: mongoose.Schema.Types.ObjectId }]
 });
 
 userSchema.methods.checkPassword = async (user, password) => {
@@ -49,13 +50,13 @@ userSchema.methods.checkPassword = async (user, password) => {
 //hooks
 userSchema.pre("save", function(next) {
   var user = this;
-
-  bcrypt.hash(user.password, 8, function(err, hash) {
-    if (err) return next(err);
-    user.password = hash;
-    next();
-  });
-
+  if (user.isModified("password")) {
+    bcrypt.hash(user.password, 8, function(err, hash) {
+      if (err) return next(err);
+      user.password = hash;
+      next();
+    });
+  }
   // bcrypt.genSalt(8, function(err, salt) {
   //   if (err) return next(err);
 

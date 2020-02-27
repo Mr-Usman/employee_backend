@@ -5,7 +5,7 @@ const timingSchema = new mongoose.Schema({
     type: String,
     default: "managar@gmail.com"
   },
-  weekShift: [ 
+  weekShift: [
     {
       day: { type: String, required: true },
       startTime: { type: String, required: true },
@@ -41,6 +41,16 @@ const timingSchema = new mongoose.Schema({
         type: Boolean,
         default: false
       }
+    }
+  ],
+  swapShift: [
+    {
+      _id: { type: mongoose.Schema.Types.ObjectId, ref: "timing" },
+      day: { type: String },
+      startTime: { type: String },
+      endTime: { type: String },
+      accepted: { type: Boolean, default: false },
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" }
     }
   ],
   // dropShift: {

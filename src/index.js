@@ -14,6 +14,7 @@ const app = express();
 dotenv.config();
 
 app.use(cors());
+debugger;
 app.use(express.json());
 
 /** Public Routes */

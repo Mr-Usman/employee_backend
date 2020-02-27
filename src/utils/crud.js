@@ -141,110 +141,161 @@ const dropShift = () => async (req, res) => {
     res.status(201).json({ currentShift: newShiftArray, droppedShift });
   } catch (e) {
     console.log(e.message);
-    res.status(400).json({ message: 'some problem occured.'})
+    res.status(400).json({ message: "some problem occured." });
   }
 };
 
-// const approveShift = () => async (req, res) => {
-//   try {
-//     const { email } = req.body;
-//     const user = await User.findOne({ email }).exec();
-//     if (req.user.role === "manager" && user.role === "developer") {
-//       const timing = await Timing.findOne({ userId: user._id }).exec();
-//       timing.dropShift[0].aprovedStatus = true;
-//       await timing.save();
-//       res.status(200).json({ message: "user dropped shift approved." });
-//     }
-//   } catch (e) {
-//     console.log(e.message);
-//   }
-// };
-
 const approveShift = () => async (req, res) => {
-  try{
-      if(req.user.role === "manager") {
-        const {timeId, userId } = req.body;
-        let updatedTiming = await Timing.findOne({ userId }).exec();
-        let { dropShift } = updatedTiming;
-        dropShift = dropShift.filter( shift => shift._id.toString() !== timeId.toString());
-        console.log(dropShift);
-        updatedTiming.dropShift = dropShift;
-        const newTiming = await updatedTiming.save();
-        res.status(200).json(newTiming.dropShift);
-      }
-  } catch(e){
+  try {
+    if (req.user.role === "manager") {
+      const { timeId, userId } = req.body;
+      let updatedTiming = await Timing.findOne({ userId }).exec();
+      let { dropShift } = updatedTiming;
+      dropShift = dropShift.filter(
+        shift => shift._id.toString() !== timeId.toString()
+      );
+      updatedTiming.dropShift = dropShift;
+      const newTiming = await updatedTiming.save();
+      res.status(200).json(newTiming.dropShift);
+    }
+  } catch (e) {
     console.log(e.message);
-    res.status(400).json({ message: 'some problem occured.'})
+    res.status(400).json({ message: "some problem occured." });
   }
-}
+};
 
 const swapShift = () => async (req, res) => {
   try {
+    const { userIds, day } = req.body;
     const { _id } = req.user;
-    const { day, email } = req.body;
-    //find th user with its email
-    const user = await User.findOne({ email }).exec();
-    //find the user timingshift array
-    let shiftTiming = await Timing.findOne({ userId: user._id }).exec();
-    //remove the day from the shiftTiming array
-    let newshiftTiming = shiftTiming.weekShift.filter(item => item.day != day);
-    //on which day we want o swap shift
-    const specificDay = shiftTiming.weekShift.filter(
-      item => item.day == day
-    )[0];
-
-    // other user with whom user want to swap his shift
-    //find the user by its email with which we want to swap our shift
-    const otherUser = await User.findOne({ email }).exec();
-    //find its timing shift
-    const timings = await Timing.findOne({ userId: otherUser._id }).exec();
-
-    const otherShiftTiming = timings.weekShift.filter(item => item.day === day);
-    if (!otherShiftTiming.length) {
-      throw new Error("The other user has not any shift that day.");
-    }
-
-    // get all the other day shift except the exchaneg one
-    let allOtherShift = timings.weekShift.filter(item => item.day !== day);
-
-    newshiftTiming.push(otherShiftTiming[0]);
-    shiftTiming.weekShift = newshiftTiming;
-    await shiftTiming.save();
-
-    allOtherShift.push(specificDay);
-    timings.weekShift = allOtherShift;
-    await timings.save();
-    res.status(200).json({ message: "shift has been swaped" });
+    // remove the swapped shift from user who wants to swap
+    const timing = await Timing.findOne({ userId: _id }).exec();
+    let { weekShift } = timing;
+    weekShift = weekShift.filter(shift => shift.day !== day.day);
+    timing.weekShift = weekShift;
+    await timing.save();
+    userIds.forEach(async element => {
+      const user = await Timing.findOne({ userId: element });
+      day["userId"] = _id;
+      user.swapShift = day;
+      Timing.findOneAndUpdate(
+        { userId: element },
+        user,
+        { upsert: true },
+        function(err, doc) {
+          if (err) return res.send(500, { error: err });
+        }
+      );
+    });
   } catch (e) {
     console.log(e.message);
   }
 };
 
-const timing = (model) => async (req, res) => {
-   try{
-   const { _id } = req.user;
-   const timing = await Timing.findOne({userId: _id }).exec();
-   res.status(200).json(timing)
-   } catch(e){
-    console.log(e.message)
-    res.status(400).json({ message: 'some problem occured.'})
-   }
-}
+const timing = model => async (req, res) => {
+  try {
+    const { _id } = req.user;
+    const timing = await Timing.findOne({ userId: _id }).exec();
+    res.status(200).json(timing);
+  } catch (e) {
+    console.log(e.message);
+    res.status(400).json({ message: "some problem occured." });
+  }
+};
 
 const getDropShifts = () => async (req, res) => {
-   try {
-    if(req.user.role === "manager") {
+  try {
+    if (req.user.role === "manager") {
       const { userId } = req.body;
       const timing = await Timing.findOne({ userId }).exec();
-      // console.log(timing.dropShift)
       res.status(200).json(timing.dropShift);
       return;
     }
-   } catch(e){
-     console.log(e.message);
-    res.status(400).json({ message: 'some problem occured.'})
-   }
-}
+  } catch (e) {
+    console.log(e.message);
+    res.status(400).json({ message: "some problem occured." });
+  }
+};
+
+const getUserWithSameRole = () => async (req, res) => {
+  try {
+    const { _id, role } = req.user;
+    const allUsers = await User.find({
+      role,
+      taskId: { $exists: true, $size: 0 }
+    })
+      .select("-password")
+      .exec();
+    res.status(200).json(allUsers);
+  } catch (e) {
+    console.log(e.message);
+  }
+};
+
+/** get swap shifts of a specific user */
+const getSwapShifts = () => async (req, res) => {
+  try {
+    const { user } = req;
+    const timingObject = await Timing.findOne({ userId: user._id })
+      .populate("userId")
+      .exec();
+    const { email } = timingObject.userId;
+    const { swapShift } = timingObject;
+    const userObj = {};
+    userObj["swapShift"] = swapShift;
+    userObj["email"] = email;
+    res.status(200).send(userObj);
+  } catch (e) {
+    console.log(e.message);
+  }
+};
+
+/** swap shift day */
+const swapShiftDay = () => async (req, res) => {
+  try {
+    const { user } = req;
+    const { day } = req.body;
+    const newTiming = [];
+    const timingObject = await Timing.findOne({ userId: user._id })
+      .populate("userId")
+      .exec();
+    let { weekShift, userId, swapShift } = timingObject; // userId is user object
+    swapShift = swapShift.filter(shift => shift.day !== day.day);
+    weekShift = weekShift.filter(shift => {
+      if (shift.day !== day.day) {
+        newTiming.push(shift);
+        return shift;
+      }
+      if (shift.day === day.day) {
+        const tempObj = {
+          _id: day._id,
+          day: day.day,
+          startTime: day.startTime,
+          endTime: day.endTime
+        };
+        newTiming.push(tempObj);
+        return tempObj;
+      }
+    });
+    timingObject.swapShift = swapShift;
+    timingObject.weekShift = newTiming;
+    await timingObject.save();
+    const { userId: id, day: dayy, endTime, startTime, _id } = day;
+    const dayAdded = { day: day.day, startTime, endTime, _id };
+    const newT = await Timing.findOneAndUpdate(
+      { userId: day.userId },
+      { $push: { weekShift: dayAdded } },
+      { new: true }
+    ).exec();
+    console.log(newT);
+    // await newT.save();
+  } catch (e) {
+    console.log(e.message);
+  }
+};
+
+/** Remove the day from weekShift of user with whom we are swaping  */
+const removeShiftDay = () => async (req, res) => {};
 
 /** Root Object For User CRUD operations */
 export const crudControllers = model => ({
@@ -257,7 +308,10 @@ export const crudControllers = model => ({
   dropShift: dropShift(),
   approveShift: approveShift(),
   swapShift: swapShift(),
-  getDropShifts: getDropShifts()
+  getDropShifts: getDropShifts(),
+  getUserWithSameRole: getUserWithSameRole(),
+  getSwapShifts: getSwapShifts(),
+  swapShiftDay: swapShiftDay()
 });
 
 /** Create Task for User */
@@ -268,7 +322,7 @@ const createTask = model => async (req, res) => {
       let dateObj = new Date(deadline);
       let momentObj = moment(dateObj);
       deadline = momentObj.format("YYYY-MM-DD HH:mm");
-      const user = await User.findOne({ email }).exec();
+      let user = await User.findOne({ email }).exec();
       const newTask = await model.create({
         title,
         description,
@@ -276,6 +330,10 @@ const createTask = model => async (req, res) => {
         assignedBy: req.user._id,
         userId: user._id
       });
+      const result = await User.updateOne(
+        { _id: user._id },
+        { $push: { taskId: newTask._id } }
+      );
       res
         .status(201)
         .json({ message: "task has assigned to user", data: newTask });
@@ -309,9 +367,9 @@ export const taskControllers = model => ({
 /** Assigning time table to employee  */
 const assigntiming = model => async (req, res) => {
   try {
-    if(req.user.role === "manager"){
+    if (req.user.role === "manager") {
       let { weekShift, _id } = req.body;
-      const newTiming = weekShift.map( time => {
+      const newTiming = weekShift.map(time => {
         let startTimeObj = new Date(time.startTime);
         let endTimeObj = new Date(time.endTime);
         let startTimeMomentObj = moment(startTimeObj);
@@ -322,7 +380,7 @@ const assigntiming = model => async (req, res) => {
           day: time.day,
           startTime,
           endTime
-        }
+        };
       });
       weekShift = newTiming;
       const timing = await model.create({ weekShift, userId: _id });
@@ -330,43 +388,12 @@ const assigntiming = model => async (req, res) => {
         .status(201)
         .json({ message: "Shift added for relevant User", data: timing });
     }
-    // const { weekShift, email } = req.body;
-    // const userId = await User.findOne({ email })
-    //   .select("id")
-    //   .exec();
-    // const testing =
-    //   weekShift &&
-    //   weekShift.map(item => {
-    //     item.startTime = dateFormat(
-    //       item.startTime,
-    //       "dddd, mmmm dS, yyyy, h:MM:ss TT"
-    //     );
-    //     item.endTime = dateFormat(
-    //       item.endTime,
-    //       "dddd, mmmm dS, yyyy, h:MM:ss TT"
-    //     );
-    //     return item;
-    //   });
-    // req.body.userId = userId;
   } catch (e) {
     res.status(400).send({
       error: e.message
     });
   }
 };
-
-/** drop shift of an employee */
-// const dropShift = model => async (req, res) => {
-//   try {
-//     const { _id } = req.user;
-//     const { name } = req.body;
-
-//     const timeShift = await model.findOne({ userId: _id }).exec();
-//     console.log(timeShift);
-//   } catch (e) {
-//     console.log(e.message);
-//   }
-// };
 
 export const timingControllers = model => ({
   assigntiming: assigntiming(model)
