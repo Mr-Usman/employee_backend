@@ -221,6 +221,7 @@ const getUserWithSameRole = () => async (req, res) => {
   try {
     const { _id, role } = req.user;
     const allUsers = await User.find({
+      _id: { $ne: _id },
       role,
       taskId: { $exists: true, $size: 0 }
     })
@@ -259,7 +260,8 @@ const swapShiftDay = () => async (req, res) => {
     const timingObject = await Timing.findOne({ userId: user._id })
       .populate("userId")
       .exec();
-    let { weekShift, userId, swapShift } = timingObject; // userId is user object
+    let { weekShift, swapShift } = timingObject; // userId is user object
+    const newDay = weekShift.filter(shift => shift.day === day.day)[0];
     swapShift = swapShift.filter(shift => shift.day !== day.day);
     weekShift = weekShift.filter(shift => {
       if (shift.day !== day.day) {
@@ -280,15 +282,12 @@ const swapShiftDay = () => async (req, res) => {
     timingObject.swapShift = swapShift;
     timingObject.weekShift = newTiming;
     await timingObject.save();
-    const { userId: id, day: dayy, endTime, startTime, _id } = day;
-    const dayAdded = { day: day.day, startTime, endTime, _id };
     const newT = await Timing.findOneAndUpdate(
       { userId: day.userId },
-      { $push: { weekShift: dayAdded } },
+      { $push: { weekShift: newDay } },
       { new: true }
     ).exec();
-    console.log(newT);
-    // await newT.save();
+    await newT.save();
   } catch (e) {
     console.log(e.message);
   }
