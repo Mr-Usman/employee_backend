@@ -27,6 +27,8 @@ router.route("/getswapshifts").get(controller.getSwapShifts);
 
 router.route("/swapday").post(controller.swapShiftDay);
 
+router.route("/getswappedlist").post(controller.getswappedlist);
+
 router.route("/reset").post(controller.reset);
 
 export default router;

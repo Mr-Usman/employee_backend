@@ -2,6 +2,7 @@ import dateFormat from "dateformat";
 
 import User from "../resources/user/user.model";
 import Timing from "../resources/timing/timing.model";
+import Task from "../resources/task/task.model";
 
 import mongoose from "mongoose";
 import moment from "moment";
@@ -62,10 +63,10 @@ const update = model => async (req, res) => {
     }
     if (req.user.role === "manager" && req.body.role === "developer") {
       const { id } = req.params;
-      const updatedUser = await model
-        .findByIdAndUpdate(id, req.body, { new: true })
+      let updatedUser = await model
+        .findByIdAndUpdate({ _id: id }, req.body, { new: true })
         .exec();
-      await updatedUser.save();
+      updatedUser = await updatedUser.save();
       res
         .status(201)
         .json({ message: "User info updated into account", data: updatedUser });
@@ -129,7 +130,8 @@ const reset = model => async (req, res) => {
 const dropShift = () => async (req, res) => {
   try {
     const { _id } = req.user;
-    const { day } = req.body;
+    const { time } = req.body;
+    const { day } = time; // day of the week
     const timing = await Timing.findOne({ userId: _id }).exec();
     const { weekShift } = timing.toJSON();
     const newShiftArray = weekShift.filter(item => item.day !== day);
@@ -149,6 +151,7 @@ const approveShift = () => async (req, res) => {
   try {
     if (req.user.role === "manager") {
       const { timeId, userId } = req.body;
+      // let hasTask = await User.findById({ _id: userId }).select('taskId').exec();
       let updatedTiming = await Timing.findOne({ userId }).exec();
       let { dropShift } = updatedTiming;
       dropShift = dropShift.filter(
@@ -187,6 +190,7 @@ const swapShift = () => async (req, res) => {
         }
       );
     });
+    res.status(200).json({ message: "Request has been sent!" });
   } catch (e) {
     console.log(e.message);
   }
@@ -227,6 +231,7 @@ const getUserWithSameRole = () => async (req, res) => {
     })
       .select("-password")
       .exec();
+    console.log("usersamerole", allUsers);
     res.status(200).json(allUsers);
   } catch (e) {
     console.log(e.message);
@@ -256,6 +261,13 @@ const swapShiftDay = () => async (req, res) => {
   try {
     const { user } = req;
     const { day } = req.body;
+    let swappedShifts = {};
+    const userShift = await Timing.findOne({ userId: day.userId }).exec();
+    swappedShifts["swappedWith"] = user._id.toString();
+    swappedShifts["swappedBy"] = day.userId;
+    userShift.swappedShifts = swappedShifts;
+    await userShift.save();
+
     const newTiming = [];
     const timingObject = await Timing.findOne({ userId: user._id })
       .populate("userId")
@@ -288,13 +300,26 @@ const swapShiftDay = () => async (req, res) => {
       { new: true }
     ).exec();
     await newT.save();
+    res.status(200).json({ message: "Shift has been Swapped!" });
   } catch (e) {
     console.log(e.message);
   }
 };
 
-/** Remove the day from weekShift of user with whom we are swaping  */
-const removeShiftDay = () => async (req, res) => {};
+/** Get the swapped lisf of user */
+const getswappedlist = () => async (req, res) => {
+  try {
+    const { user } = req.body;
+    const userTimings = await Timing.findOne({ userId: user._id }).exec();
+    const { swappedShifts } = userTimings;
+    const { swappedWith } = swappedShifts;
+    let userr = await User.findOne({ _id: swappedWith }).exec();
+    res.status(200).end(userr.email);
+  } catch (e) {
+    console.log(e.message);
+    res.status(400).json({ message: e.message });
+  }
+};
 
 /** Root Object For User CRUD operations */
 export const crudControllers = model => ({
@@ -310,7 +335,8 @@ export const crudControllers = model => ({
   getDropShifts: getDropShifts(),
   getUserWithSameRole: getUserWithSameRole(),
   getSwapShifts: getSwapShifts(),
-  swapShiftDay: swapShiftDay()
+  swapShiftDay: swapShiftDay(),
+  getswappedlist: getswappedlist()
 });
 
 /** Create Task for User */

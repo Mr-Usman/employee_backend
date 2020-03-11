@@ -53,6 +53,10 @@ const timingSchema = new mongoose.Schema({
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" }
     }
   ],
+  swappedShifts: {
+    swappedBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+    swappedWith: { type: mongoose.Schema.Types.ObjectId, ref: "user" }
+  },
   // dropShift: {
   //   day: { type: String, required: true },
   //   startTime: { type: String, required: true },
