@@ -132,6 +132,14 @@ const dropShift = () => async (req, res) => {
     const { _id } = req.user;
     const { time } = req.body;
     const { day } = time; // day of the week
+    // fetch all tasks of user
+    const task = await Task.findOne({ userId: _id }).exec();
+    const { deadline } = task;
+    if (deadline === time.startTime.toString()) {
+      return res
+        .status(403)
+        .json({ message: `Sorry you cann't drop your shift for ${deadline}` });
+    }
     const timing = await Timing.findOne({ userId: _id }).exec();
     const { weekShift } = timing.toJSON();
     const newShiftArray = weekShift.filter(item => item.day !== day);
@@ -151,7 +159,6 @@ const approveShift = () => async (req, res) => {
   try {
     if (req.user.role === "manager") {
       const { timeId, userId } = req.body;
-      // let hasTask = await User.findById({ _id: userId }).select('taskId').exec();
       let updatedTiming = await Timing.findOne({ userId }).exec();
       let { dropShift } = updatedTiming;
       dropShift = dropShift.filter(
@@ -192,7 +199,7 @@ const swapShift = () => async (req, res) => {
     });
     res.status(200).json({ message: "Request has been sent!" });
   } catch (e) {
-    console.log(e.message);
+    res.status(200).json({ message: "There is problem in system!" });
   }
 };
 
@@ -346,7 +353,7 @@ const createTask = model => async (req, res) => {
       let { email, deadline, title, description } = req.body;
       let dateObj = new Date(deadline);
       let momentObj = moment(dateObj);
-      deadline = momentObj.format("YYYY-MM-DD HH:mm");
+      deadline = momentObj.format("DD-MM-YYYY HH:mm");
       let user = await User.findOne({ email }).exec();
       const newTask = await model.create({
         title,
@@ -422,5 +429,4 @@ const assigntiming = model => async (req, res) => {
 
 export const timingControllers = model => ({
   assigntiming: assigntiming(model)
-  // dropShift: dropShift(model)
 });
